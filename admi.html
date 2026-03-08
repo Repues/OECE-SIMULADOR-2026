@@ -312,6 +312,27 @@
         </div>
     </div>
 
+    <!-- MODAL CONFLICTO DE CARGA -->
+    <div id="modal-conflict" class="modal-overlay" style="display:none">
+        <div class="modal" style="max-width:440px; text-align:center">
+            <div style="font-size:2.2rem; margin-bottom:10px">⚠️</div>
+            <h3 style="margin-top:0; color:var(--osce-blue)">Preguntas duplicadas detectadas</h3>
+            <p id="conflict-msg" style="color:var(--text-muted); font-size:0.9rem; margin-bottom:6px"></p>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:24px">¿Qué deseas hacer?</p>
+            <div style="display:flex; flex-direction:column; gap:10px">
+                <button class="btn btn-danger" id="btn-conflict-replace" style="padding:14px; font-size:0.9rem">
+                    🔄 Reemplazar las existentes
+                    <span style="display:block; font-size:0.75rem; font-weight:400; opacity:0.8; margin-top:2px">Sobreescribe los IDs que ya existen</span>
+                </button>
+                <button class="btn btn-primary" id="btn-conflict-append" style="padding:14px; font-size:0.9rem">
+                    ➕ Agregar como nuevas
+                    <span style="display:block; font-size:0.75rem; font-weight:400; opacity:0.8; margin-top:2px">Continúa la numeración desde el último ID</span>
+                </button>
+                <button class="btn btn-secondary" id="btn-conflict-cancel" style="padding:12px; font-size:0.85rem">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
     <div id="toast" class="toast"></div>
 
     <script>
@@ -514,11 +535,80 @@
         }
 
         // ── File Upload ────────────────────────────────────────────
+        const BATCH_LIMIT = 499;
+
+        async function commitQuestions(data, mode, existingIds, existingSize) {
+            const status = document.getElementById('upload-status');
+            if (mode === 'replace') {
+                // Reemplazar: usar los mismos IDs que ya existen (P0001...) en orden
+                status.innerText = `⏳ Reemplazando ${data.length} preguntas...`;
+                const sortedIds = existingIds.sort((a, b) => {
+                    return (parseInt(a.replace(/\D/g,''),10)||0) - (parseInt(b.replace(/\D/g,''),10)||0);
+                });
+                for (let offset = 0; offset < data.length; offset += BATCH_LIMIT) {
+                    const chunk = data.slice(offset, offset + BATCH_LIMIT);
+                    const batch = db.batch();
+                    chunk.forEach((q, i) => {
+                        // Si hay ID existente reutilizarlo, si no crear nuevo
+                        const id  = sortedIds[offset + i] || `P${String(existingSize + offset + i + 1).padStart(4,'0')}`;
+                        const ref = db.collection('preguntas').doc(id);
+                        batch.set(ref, { texto:q.texto, opciones:q.opciones, respuesta_correcta:q.respuesta_correcta, sustento_legal:q.sustento_legal, tema:q.tema, nivel:q.nivel });
+                    });
+                    await batch.commit();
+                }
+                status.innerText = `✅ ${data.length} preguntas reemplazadas correctamente.`;
+            } else {
+                // Append: continuar desde el último número
+                status.innerText = `⏳ Agregando ${data.length} preguntas nuevas (desde #${existingSize + 1})...`;
+                for (let offset = 0; offset < data.length; offset += BATCH_LIMIT) {
+                    const chunk = data.slice(offset, offset + BATCH_LIMIT);
+                    const batch = db.batch();
+                    chunk.forEach((q, i) => {
+                        const globalIdx = existingSize + offset + i + 1;
+                        const ref = db.collection('preguntas').doc(`P${String(globalIdx).padStart(4,'0')}`);
+                        batch.set(ref, { texto:q.texto, opciones:q.opciones, respuesta_correcta:q.respuesta_correcta, sustento_legal:q.sustento_legal, tema:q.tema, nivel:q.nivel });
+                    });
+                    await batch.commit();
+                }
+                const total = existingSize + data.length;
+                status.innerText = `✅ ${data.length} preguntas añadidas. Total: ${total}.`;
+            }
+            status.style.color = 'var(--success)';
+            toast(`✅ Carga completada.`);
+            loadQuestions();
+        }
+
+        function showConflictModal(data, existingIds, existingSize, conflicts) {
+            const msg = document.getElementById('conflict-msg');
+            msg.innerHTML = `El archivo contiene <strong>${data.length} preguntas</strong>. Se detectaron <strong>${conflicts} IDs</strong> que ya existen en la base de datos.`;
+            document.getElementById('modal-conflict').style.display = 'flex';
+
+            // One-time listeners
+            const btnReplace = document.getElementById('btn-conflict-replace');
+            const btnAppend  = document.getElementById('btn-conflict-append');
+            const btnCancel  = document.getElementById('btn-conflict-cancel');
+
+            const cleanup = () => {
+                document.getElementById('modal-conflict').style.display = 'none';
+                btnReplace.onclick = null; btnAppend.onclick = null; btnCancel.onclick = null;
+            };
+
+            btnReplace.onclick = async () => { cleanup(); await commitQuestions(data, 'replace', existingIds, existingSize); };
+            btnAppend.onclick  = async () => { cleanup(); await commitQuestions(data, 'append',  existingIds, existingSize); };
+            btnCancel.onclick  = () => {
+                cleanup();
+                document.getElementById('upload-status').innerText = 'Carga cancelada.';
+                document.getElementById('upload-status').style.color = 'var(--text-muted)';
+                document.getElementById('file-input').value = '';
+            };
+        }
+
         async function handleFileUpload(event) {
             const file = event.target.files[0];
             const status = document.getElementById('upload-status');
             if (!file) return;
             status.innerText = '⏳ Procesando archivo...';
+            status.style.color = 'var(--text-muted)';
 
             const reader = new FileReader();
             reader.onload = async (e) => {
@@ -526,53 +616,53 @@
                     const data = JSON.parse(e.target.result);
                     if (!Array.isArray(data)) throw new Error('El JSON debe ser un array');
 
-                    // Validate structure
+                    // Validar estructura
                     const required = ['texto', 'opciones', 'respuesta_correcta', 'sustento_legal', 'tema', 'nivel'];
-                    for (const item of data) {
+                    for (let idx = 0; idx < data.length; idx++) {
+                        const item = data[idx];
                         for (const field of required) {
-                            if (!(field in item)) throw new Error(`Falta campo: ${field}`);
+                            if (!(field in item)) throw new Error(`Pregunta #${idx+1}: falta el campo "${field}"`);
                         }
-                        if (!Array.isArray(item.opciones) || item.opciones.length !== 4) throw new Error('opciones debe ser un array de 4 elementos');
-                        if (!['intermedio','avanzado'].includes(item.nivel)) throw new Error(`nivel inválido: ${item.nivel}`);
+                        if (!Array.isArray(item.opciones) || item.opciones.length !== 4)
+                            throw new Error(`Pregunta #${idx+1}: "opciones" debe ser un array de exactamente 4 elementos`);
+                        if (!['intermedio','avanzado'].includes(item.nivel))
+                            throw new Error(`Pregunta #${idx+1}: nivel inválido "${item.nivel}" — usa "intermedio" o "avanzado"`);
                     }
 
-                    status.innerText = `⏳ Contando preguntas existentes...`;
+                    status.innerText = '⏳ Consultando base de datos...';
 
-                    // Contar preguntas existentes para continuar desde ese índice
+                    // Verificar IDs que ya existen
                     const existingSnap = await db.collection('preguntas').get();
-                    const startIndex = existingSnap.size;
+                    const existingSize = existingSnap.size;
+                    const existingIds  = existingSnap.docs.map(d => d.id);
 
-                    status.innerText = `⏳ Subiendo ${data.length} preguntas (desde #${startIndex + 1})...`;
+                    // Calcular cuántos IDs del nuevo lote colisionarían
+                    const newIds = data.map((_, i) => `P${String(i+1).padStart(4,'0')}`);
+                    const conflicts = newIds.filter(id => existingIds.includes(id)).length;
 
-                    // Firestore permite máx 500 operaciones por batch — dividir si es necesario
-                    const BATCH_LIMIT = 499;
-                    for (let offset = 0; offset < data.length; offset += BATCH_LIMIT) {
-                        const chunk = data.slice(offset, offset + BATCH_LIMIT);
-                        const batch = db.batch();
-                        chunk.forEach((q, i) => {
-                            const globalIdx = startIndex + offset + i + 1;
-                            const ref = db.collection('preguntas').doc(`P${String(globalIdx).padStart(4, '0')}`);
-                            batch.set(ref, {
-                                texto: q.texto,
-                                opciones: q.opciones,
-                                respuesta_correcta: q.respuesta_correcta,
-                                sustento_legal: q.sustento_legal,
-                                tema: q.tema,
-                                nivel: q.nivel
-                            });
-                        });
-                        await batch.commit();
+                    if (existingSize > 0 && conflicts > 0) {
+                        // Mostrar modal de decisión
+                        showConflictModal(data, existingIds, existingSize, conflicts);
+                    } else {
+                        // Sin conflictos → agregar directamente
+                        await commitQuestions(data, 'append', existingIds, existingSize);
                     }
-
-                    const total = startIndex + data.length;
-                    status.innerText = `✅ Éxito: ${data.length} preguntas añadidas. Total en base de datos: ${total}.`;
-                    status.style.color = 'var(--success)';
-                    toast(`${data.length} preguntas añadidas. Total: ${total}.`);
-                    loadQuestions();
                 } catch(err) {
-                    status.innerText = `❌ Error: ${err.message}`;
+                    // Modal de error de formato
+                    status.innerText = `❌ Error en el archivo`;
                     status.style.color = 'var(--osce-red)';
-                    toast('Error en el archivo JSON.', 'error');
+                    // Mostrar alerta visual
+                    const overlay = document.createElement('div');
+                    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9000;display:flex;align-items:center;justify-content:center;';
+                    overlay.innerHTML = `<div style="background:white;border-radius:16px;padding:32px;max-width:420px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
+                        <div style="font-size:2.5rem;margin-bottom:12px">❌</div>
+                        <h3 style="margin:0 0 10px;color:#991b1b">Formato incorrecto</h3>
+                        <p style="color:#64748b;font-size:0.88rem;line-height:1.6;margin-bottom:20px">${err.message}</p>
+                        <p style="color:#94a3b8;font-size:0.78rem;margin-bottom:20px">Revisa que el archivo cumpla el formato JSON requerido:<br><code style="background:#f1f5f9;padding:2px 6px;border-radius:4px">texto, opciones[ ], respuesta_correcta, sustento_legal, tema, nivel</code></p>
+                        <button onclick="this.closest('div').parentElement.remove()" style="background:var(--osce-blue);color:white;border:none;padding:12px 28px;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9rem">Entendido</button>
+                    </div>`;
+                    document.body.appendChild(overlay);
+                    document.getElementById('file-input').value = '';
                 }
             };
             reader.readAsText(file);
