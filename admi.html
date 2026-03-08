@@ -590,6 +590,13 @@
                 allQuestionsCache = [];
                 snap.forEach(doc => allQuestionsCache.push({ id: doc.id, ...doc.data() }));
 
+                // Ordenar por número extraído del ID (P0001 → 1, P0025 → 25, etc.)
+                allQuestionsCache.sort((a, b) => {
+                    const numA = parseInt(a.id.replace(/\D/g, ''), 10) || 0;
+                    const numB = parseInt(b.id.replace(/\D/g, ''), 10) || 0;
+                    return numA - numB;
+                });
+
                 // Poblar filtro de temas
                 const temas = [...new Set(allQuestionsCache.map(q => q.tema).filter(Boolean))].sort();
                 const filterTema = document.getElementById('filter-tema');
