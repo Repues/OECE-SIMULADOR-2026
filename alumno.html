@@ -229,12 +229,74 @@
         .result-stat span { display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; }
         .result-stat strong { font-size: 1.1rem; color: var(--osce-blue); }
 
+        /* TOPIC BREAKDOWN */
         .topic-breakdown { text-align: left; margin-bottom: 25px; }
-        .topic-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
-        .topic-pct { font-weight: 700; }
-        .pct-good { color: var(--osce-green); }
-        .pct-mid { color: #f97316; }
-        .pct-bad { color: var(--osce-red); }
+        .topic-breakdown-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .topic-breakdown-header h4 {
+            margin: 0;
+            color: var(--osce-blue);
+            font-size: 0.95rem;
+            font-weight: 700;
+        }
+        .topic-breakdown-header span {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+        .topic-row {
+            margin-bottom: 10px;
+        }
+        .topic-row-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .topic-name {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 70%;
+        }
+        .topic-score {
+            font-size: 0.78rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .topic-bar-bg {
+            height: 6px;
+            background: #F1F5F9;
+            border-radius: 99px;
+            overflow: hidden;
+        }
+        .topic-bar-fill {
+            height: 100%;
+            border-radius: 99px;
+            transition: width 1s ease-out;
+        }
+        .bar-good  { background: #22c55e; }
+        .bar-mid   { background: #f97316; }
+        .bar-bad   { background: var(--osce-red); }
+        .pct-good  { color: #16a34a; }
+        .pct-mid   { color: #ea580c; }
+        .pct-bad   { color: var(--osce-red); }
+
+        .topics-scroll {
+            max-height: 220px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .topics-scroll::-webkit-scrollbar { width: 4px; }
+        .topics-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 99px; }
+        .topics-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
 
         #no-questions-msg {
             display: none;
@@ -929,15 +991,47 @@
             feedbackMsg.innerText = 'Nivel bajo. Requiere más estudio.'; ring.style.stroke = 'var(--osce-red)';
         }
 
-        // Topic breakdown
+        // Topic breakdown — ordenado de peor a mejor para destacar áreas débiles
         const bd = document.getElementById('topic-breakdown');
-        bd.innerHTML = '<h4 style="margin-bottom:10px;color:var(--osce-blue)">Rendimiento por Tema</h4>';
-        Object.keys(topicResults).sort().forEach(tema => {
-            const r = topicResults[tema];
-            const pct = Math.round((r.correct / r.total) * 100);
-            const cls = pct >= 75 ? 'pct-good' : pct >= 50 ? 'pct-mid' : 'pct-bad';
-            bd.innerHTML += `<div class="topic-row"><span>${tema}</span><span class="topic-pct ${cls}">${r.correct}/${r.total} (${pct}%)</span></div>`;
+        const sortedTopics = Object.keys(topicResults).sort((a, b) => {
+            const pctA = topicResults[a].correct / topicResults[a].total;
+            const pctB = topicResults[b].correct / topicResults[b].total;
+            return pctA - pctB; // peor rendimiento primero
         });
+
+        const totalTemas = sortedTopics.length;
+        bd.innerHTML = `
+            <div class="topic-breakdown-header">
+                <h4>Rendimiento por Tema</h4>
+                <span>${totalTemas} temas evaluados</span>
+            </div>
+            <div class="topics-scroll" id="topics-scroll"></div>`;
+
+        const scroll = document.getElementById('topics-scroll');
+        sortedTopics.forEach(tema => {
+            const r   = topicResults[tema];
+            const pct = Math.round((r.correct / r.total) * 100);
+            const cls    = pct >= 75 ? 'pct-good'  : pct >= 50 ? 'pct-mid'  : 'pct-bad';
+            const barCls = pct >= 75 ? 'bar-good'  : pct >= 50 ? 'bar-mid'  : 'bar-bad';
+            const icon   = pct >= 75 ? '✓' : pct >= 50 ? '~' : '✗';
+            scroll.innerHTML += `
+                <div class="topic-row">
+                    <div class="topic-row-top">
+                        <span class="topic-name">${tema}</span>
+                        <span class="topic-score ${cls}">${icon} ${r.correct}/${r.total} · ${pct}%</span>
+                    </div>
+                    <div class="topic-bar-bg">
+                        <div class="topic-bar-fill ${barCls}" style="width:0%" data-w="${pct}"></div>
+                    </div>
+                </div>`;
+        });
+
+        // Animar barras después de render
+        setTimeout(() => {
+            document.querySelectorAll('.topic-bar-fill').forEach(bar => {
+                bar.style.width = bar.dataset.w + '%';
+            });
+        }, 150);
 
         // Save adaptive stats
         // Guardar estadísticas adaptativas SOLO si fue Modo Aprendizaje
