@@ -220,13 +220,38 @@
                 <div id="upload-status" style="margin-top:15px;font-weight:600"></div>
             </div>
             <div class="card">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px">
                     <h3 style="margin:0">Preguntas en Base de Datos</h3>
                     <span id="q-count-badge" style="background:#f1f5f9; padding:5px 12px; border-radius:20px; font-size:0.8rem; font-weight:700"></span>
                 </div>
+
+                <!-- Filtros + acciones -->
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:15px; align-items:center;">
+                    <select id="filter-tema" onchange="applyFilters()" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.85rem; flex:1; min-width:140px;">
+                        <option value="">Todos los temas</option>
+                    </select>
+                    <select id="filter-nivel" onchange="applyFilters()" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.85rem;">
+                        <option value="">Todos los niveles</option>
+                        <option value="intermedio">Intermedio</option>
+                        <option value="avanzado">Avanzado</option>
+                    </select>
+                    <button id="btn-delete-selected" class="btn btn-danger" onclick="deleteSelected()" style="display:none; padding:8px 16px; font-size:0.85rem;">
+                        🗑 Eliminar seleccionadas (<span id="selected-count">0</span>)
+                    </button>
+                </div>
+
                 <table>
-                    <thead><tr><th>#</th><th>Pregunta</th><th>Tema</th><th>Nivel</th><th>Acciones</th></tr></thead>
-                    <tbody id="questions-table-body"><tr class="loading-row"><td colspan="5">Cargando preguntas...</td></tr></tbody>
+                    <thead>
+                        <tr>
+                            <th style="width:36px"><input type="checkbox" id="check-all" onchange="toggleAll(this)" title="Seleccionar todas"></th>
+                            <th>#</th>
+                            <th>Pregunta</th>
+                            <th>Tema</th>
+                            <th>Nivel</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="questions-table-body"><tr class="loading-row"><td colspan="6">Cargando preguntas...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -554,34 +579,101 @@
         }
 
         // ── Load Questions ─────────────────────────────────────────
+        let allQuestionsCache = []; // cache para filtrar sin re-fetch
+
         async function loadQuestions() {
             try {
-                const snap = await db.collection('preguntas').get();
-                const tbody = document.getElementById('questions-table-body');
+                const snap = await db.collection('preguntas').orderBy(firebase.firestore.FieldPath.documentId()).get();
                 const badge = document.getElementById('q-count-badge');
-                tbody.innerHTML = '';
                 badge.innerText = `${snap.size} preguntas`;
 
-                if (snap.empty) {
-                    tbody.innerHTML = '<tr class="loading-row"><td colspan="5">No hay preguntas cargadas.</td></tr>';
-                    return;
-                }
+                allQuestionsCache = [];
+                snap.forEach(doc => allQuestionsCache.push({ id: doc.id, ...doc.data() }));
 
-                let i = 1;
-                snap.forEach(doc => {
-                    const d = doc.data();
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td style="color:var(--text-muted)">${i++}</td>
-                        <td style="max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.texto}</td>
-                        <td>${d.tema || '—'}</td>
-                        <td><span class="status-badge ${d.nivel === 'intermedio' ? 'status-active' : 'status-warning'}">${d.nivel}</span></td>
-                        <td><button class="btn btn-danger" style="padding:4px 10px;font-size:0.75rem" onclick="deleteQuestion('${doc.id}')">Eliminar</button></td>`;
-                    tbody.appendChild(tr);
+                // Poblar filtro de temas
+                const temas = [...new Set(allQuestionsCache.map(q => q.tema).filter(Boolean))].sort();
+                const filterTema = document.getElementById('filter-tema');
+                const currentTema = filterTema.value;
+                filterTema.innerHTML = '<option value="">Todos los temas</option>';
+                temas.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t; opt.innerText = t;
+                    if (t === currentTema) opt.selected = true;
+                    filterTema.appendChild(opt);
                 });
+
+                renderTable(allQuestionsCache);
             } catch(err) {
                 console.error(err);
             }
+        }
+
+        function applyFilters() {
+            const tema  = document.getElementById('filter-tema').value;
+            const nivel = document.getElementById('filter-nivel').value;
+            let filtered = allQuestionsCache;
+            if (tema)  filtered = filtered.filter(q => q.tema  === tema);
+            if (nivel) filtered = filtered.filter(q => q.nivel === nivel);
+            renderTable(filtered);
+        }
+
+        function renderTable(list) {
+            const tbody = document.getElementById('questions-table-body');
+            tbody.innerHTML = '';
+            document.getElementById('check-all').checked = false;
+            updateDeleteBtn();
+
+            if (list.length === 0) {
+                tbody.innerHTML = '<tr class="loading-row"><td colspan="6">No hay preguntas con ese filtro.</td></tr>';
+                return;
+            }
+
+            list.forEach((q, i) => {
+                const tr = document.createElement('tr');
+                tr.dataset.id = q.id;
+                tr.innerHTML = `
+                    <td><input type="checkbox" class="q-check" onchange="updateDeleteBtn()"></td>
+                    <td style="color:var(--text-muted);font-size:0.8rem">${q.id}</td>
+                    <td style="max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${q.texto}</td>
+                    <td style="font-size:0.85rem">${q.tema || '—'}</td>
+                    <td><span class="status-badge ${q.nivel === 'intermedio' ? 'status-active' : 'status-warning'}">${q.nivel}</span></td>
+                    <td><button class="btn btn-danger" style="padding:4px 10px;font-size:0.75rem" onclick="deleteQuestion('${q.id}')">Eliminar</button></td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function toggleAll(master) {
+            document.querySelectorAll('.q-check').forEach(cb => cb.checked = master.checked);
+            updateDeleteBtn();
+        }
+
+        function updateDeleteBtn() {
+            const checked = document.querySelectorAll('.q-check:checked').length;
+            const btn = document.getElementById('btn-delete-selected');
+            btn.style.display = checked > 0 ? 'inline-block' : 'none';
+            document.getElementById('selected-count').innerText = checked;
+        }
+
+        async function deleteSelected() {
+            const rows = document.querySelectorAll('.q-check:checked');
+            if (rows.length === 0) return;
+            if (!confirm(`¿Eliminar las ${rows.length} preguntas seleccionadas? Esta acción no se puede deshacer.`)) return;
+
+            const ids = [...rows].map(cb => cb.closest('tr').dataset.id);
+
+            // Batch delete (max 499 por batch)
+            const BATCH_LIMIT = 499;
+            for (let offset = 0; offset < ids.length; offset += BATCH_LIMIT) {
+                const chunk = ids.slice(offset, offset + BATCH_LIMIT);
+                const batch = db.batch();
+                chunk.forEach(id => batch.delete(db.collection('preguntas').doc(id)));
+                await batch.commit();
+            }
+
+            toast(`🗑 ${ids.length} preguntas eliminadas.`);
+            document.getElementById('check-all').checked = false;
+            updateDeleteBtn();
+            await loadQuestions();
         }
 
         async function deleteQuestion(id) {
