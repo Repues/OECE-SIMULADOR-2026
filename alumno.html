@@ -190,9 +190,58 @@
             margin-bottom: 40px;
         }
 
-        .q-text { font-family: 'Instrument Serif', serif; font-size: 1.9rem; color: var(--osce-blue); margin-bottom: 35px; line-height: 1.2; }
-        
-        .option-item { padding: 18px 24px; border: 2px solid var(--border); border-radius: 14px; margin-bottom: 12px; cursor: pointer; transition: 0.2s; font-weight: 500; font-size: 1rem; }
+        .q-text {
+            font-family: 'Inter', system-ui, sans-serif;
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 28px;
+            line-height: 1.55;
+            letter-spacing: -0.01em;
+        }
+        .q-num {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 10px;
+            display: block;
+        }
+        .option-item {
+            padding: 14px 18px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 9px;
+            cursor: pointer;
+            transition: 0.15s;
+            font-weight: 500;
+            font-size: 0.93rem;
+            line-height: 1.45;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        .opt-letter {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--bg-light);
+            border: 1.5px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.72rem;
+            font-weight: 800;
+            color: var(--text-muted);
+            margin-top: 1px;
+            transition: 0.15s;
+        }
+        .option-item:hover .opt-letter { background: var(--osce-blue); color: white; border-color: var(--osce-blue); }
+        .option-item.selected-blue .opt-letter { background: var(--osce-blue); color: white; border-color: var(--osce-blue); }
+        .option-item.correct .opt-letter { background: #22c55e; color: white; border-color: #22c55e; }
+        .option-item.wrong   .opt-letter { background: #ef4444; color: white; border-color: #ef4444; }
         @media (hover: hover) { .option-item:hover { background: #f8faff; border-color: var(--osce-blue); } }
         .option-item.selected-blue { background: #e0e7ff; border-color: var(--osce-blue); }
         .option-item.correct { background: #dcfce7 !important; border-color: #22c55e !important; color: #166534; }
@@ -706,22 +755,26 @@
     // ACRONYMS DATA
     // ══════════════════════════════════════════════════════
     const acronymsData = [
-        { b: "DGA",   s: "Dirección General de Abastecimiento (Rector del SNA)." },
-        { b: "JRD",   s: "Junta de Resolución de Disputas (En ejecución de obras)." },
-        { b: "PER",   s: "Plataforma de Estrategias de Regulación (Ley 32069)." },
-        { b: "RIC",   s: "Registro de Infractores a la Contratación Pública." },
-        { b: "TCE",   s: "Tribunal de Contrataciones del Estado (Instancia administrativa)." },
-        { b: "SIGA",  s: "Sistema Integrado de Gestión Administrativa (Módulo Logístico)." },
-        { b: "SNA",   s: "Sistema Nacional de Abastecimiento (Cadena logística)." },
-        { b: "ZED",   s: "Zonas Especiales de Desarrollo (Contrataciones especiales)." },
-        { b: "PAC",   s: "Plan Anual de Contrataciones (Gestión de la Entidad)." },
-        { b: "SEACE", s: "Sistema Electrónico de Contrataciones del Estado." },
-        { b: "RNP",   s: "Registro Nacional de Proveedores (Habilitación)." },
-        { b: "OECE",  s: "Órgano Encargado de las Contrataciones de la Entidad." },
-        { b: "EETT",  s: "Especificaciones Técnicas (Para bienes)." },
-        { b: "TDR",   s: "Términos de Referencia (Para servicios)." },
-        { b: "SIAF",  s: "Sistema Integrado de Administración Financiera." },
-        { b: "MEF",   s: "Ministerio de Economía y Finanzas." }
+        { b: "OECE",  s: "Órgano Encargado de las Contrataciones de la Entidad — área responsable de los procedimientos de selección." },
+        { b: "SEACE", s: "Sistema Electrónico de Contrataciones del Estado — plataforma oficial donde se registran y publican los procedimientos." },
+        { b: "RNP",   s: "Registro Nacional de Proveedores — registro obligatorio para participar en contrataciones con el Estado." },
+        { b: "PAC",   s: "Plan Anual de Contrataciones — instrumento de gestión que programa las contrataciones del ejercicio fiscal." },
+        { b: "JPRD",  s: "Junta de Prevención y Resolución de Disputas — mecanismo de solución de controversias durante ejecución de obras." },
+        { b: "TCE",   s: "Tribunal de Contrataciones del Estado — órgano colegiado que resuelve controversias y sanciona infracciones." },
+        { b: "EETT",  s: "Especificaciones Técnicas — descripción de las características y requisitos de los bienes a contratar." },
+        { b: "TDR",   s: "Términos de Referencia — descripción de las condiciones y alcance de los servicios o consultorías a contratar." },
+        { b: "CUI",   s: "Código Único de Inversión — código que identifica cada proyecto de inversión pública en el sistema Invierte.pe." },
+        { b: "SNA",   s: "Sistema Nacional de Abastecimiento — sistema administrativo que regula la gestión de la cadena de abastecimiento público." },
+        { b: "DGA",   s: "Dirección General de Abastecimiento — ente rector del SNA, adscrito al MEF." },
+        { b: "MEF",   s: "Ministerio de Economía y Finanzas — ente rector de los sistemas administrativos financieros del Estado." },
+        { b: "SIAF",  s: "Sistema Integrado de Administración Financiera — plataforma del MEF para gestión presupuestal y pagos del Estado." },
+        { b: "SIGA",  s: "Sistema Integrado de Gestión Administrativa — módulo logístico vinculado al SIAF para la gestión de pedidos y órdenes." },
+        { b: "OCI",   s: "Órgano de Control Institucional — unidad orgánica responsable del control gubernamental interno en cada entidad." },
+        { b: "UIT",   s: "Unidad Impositiva Tributaria — unidad de referencia para determinar montos tope de contrataciones y sanciones." },
+        { b: "AS",    s: "Adjudicación Simplificada — procedimiento de selección para bienes, servicios y obras de menor cuantía." },
+        { b: "LP",    s: "Licitación Pública — procedimiento de selección para bienes y obras de mayor cuantía." },
+        { b: "CP",    s: "Concurso Público — procedimiento de selección para servicios y consultorías de mayor cuantía." },
+        { b: "CDS",   s: "Comparación de Precios — modalidad de contratación para bienes o servicios disponibles en el mercado." }
     ];
 
     // ══════════════════════════════════════════════════════
@@ -1041,13 +1094,34 @@
         }
     }
 
-    function nextQ() {
+    async function nextQ() {
+        // Aviso si dejó en blanco (solo Examen Real)
+        if (currentMode === 'final' && userAnswers[currentIdx] === null) {
+            const ok = await customConfirm(
+                'No has seleccionado ninguna respuesta para esta pregunta. Puedes volver y responderla antes de continuar.',
+                '¿Dejar en blanco?',
+                '⚠️'
+            );
+            if (!ok) return; // se queda en la pregunta
+        }
         if (currentIdx < examQuestions.length - 1) {
             currentIdx++;
             renderQuestion();
             document.querySelector('.exam-area').scrollTop = 0;
         } else {
-            finishExam();
+            // Si es la última, avisar cuántas quedaron en blanco
+            if (currentMode === 'final') {
+                const blancos = userAnswers.filter(a => a === null).length;
+                if (blancos > 0) {
+                    const ok = await customConfirm(
+                        `Tienes ${blancos} pregunta${blancos > 1 ? 's' : ''} sin responder. ¿Deseas finalizar de todas formas?`,
+                        '¿Finalizar con preguntas en blanco?',
+                        '📋'
+                    );
+                    if (!ok) return;
+                }
+            }
+            finishExam(true);
         }
     }
 
