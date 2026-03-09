@@ -614,6 +614,23 @@
 
                 <div id="feedback-box"><span id="feedback-msg">Evaluando...</span></div>
 
+                <!-- Nivel que obtendría en certificación -->
+                <div id="nivel-cert-box" style="margin:14px 0; padding:14px 16px; border-radius:12px; text-align:left; border:1.5px solid #e2e8f0;">
+                    <div style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); margin-bottom:6px">Nivel que obtendrías en el examen real</div>
+                    <div id="nivel-cert-label" style="font-size:1.1rem; font-weight:800;"></div>
+                    <div id="nivel-cert-sub" style="font-size:0.78rem; color:var(--text-muted); margin-top:4px;"></div>
+                    <div style="margin-top:10px; display:flex; gap:6px; flex-wrap:wrap;" id="nivel-thresholds">
+                        <span class="nivel-pip" id="pip-basico">≥30 Básico</span>
+                        <span class="nivel-pip" id="pip-intermedio">≥43 Intermedio</span>
+                        <span class="nivel-pip" id="pip-avanzado">≥58 Avanzado</span>
+                    </div>
+                </div>
+
+                <!-- Toast error guardado -->
+                <div id="save-error-toast" style="display:none; background:#fee2e2; color:#991b1b; padding:10px 14px; border-radius:8px; font-size:0.8rem; margin-bottom:10px;">
+                    ⚠️ No se pudo guardar este intento. Verifica tu conexión.
+                </div>
+
                 <button class="res-finish-btn" onclick="location.reload()">Finalizar y Volver al Inicio</button>
             </div>
 
@@ -926,6 +943,177 @@
     function shuffleArray(arr) { const a = [...arr]; shuffle(a); return a; }
 
     // ══════════════════════════════════════════════════════
+    // MAPEO TEMA → COMPETENCIA
+    // ══════════════════════════════════════════════════════
+    const TEMA_COMPETENCIA_MAP = {
+  "requerimiento": "Actuaciones Preparatorias",
+  "actuaciones preparatorias": "Actuaciones Preparatorias",
+  "impedimentos para contratar": "Actuaciones Preparatorias",
+  "impedimentos": "Actuaciones Preparatorias",
+  "especificaciones técnicas": "Actuaciones Preparatorias",
+  "especificaciones tecnicas": "Actuaciones Preparatorias",
+  "eett": "Actuaciones Preparatorias",
+  "tdr": "Actuaciones Preparatorias",
+  "términos de referencia": "Actuaciones Preparatorias",
+  "terminos de referencia": "Actuaciones Preparatorias",
+  "valor referencial": "Actuaciones Preparatorias",
+  "valor estimado": "Actuaciones Preparatorias",
+  "pac": "Actuaciones Preparatorias",
+  "plan anual de contrataciones": "Actuaciones Preparatorias",
+  "aprobación de expediente": "Actuaciones Preparatorias",
+  "aprobacion de expediente": "Actuaciones Preparatorias",
+  "certificación presupuestal": "Actuaciones Preparatorias",
+  "certificacion presupuestal": "Actuaciones Preparatorias",
+  "prohibiciones": "Actuaciones Preparatorias",
+  "prohibición": "Actuaciones Preparatorias",
+  "contrataciones especiales": "Actuaciones Preparatorias",
+  "métodos especiales": "Actuaciones Preparatorias",
+  "metodos especiales": "Actuaciones Preparatorias",
+  "compras corporativas": "Actuaciones Preparatorias",
+  "compra corporativa": "Actuaciones Preparatorias",
+  "contrataciones directas": "Actuaciones Preparatorias",
+  "contratación directa": "Actuaciones Preparatorias",
+  "contratacion directa": "Actuaciones Preparatorias",
+  "encargo": "Actuaciones Preparatorias",
+  "catálogo electrónico": "Actuaciones Preparatorias",
+  "catalogo electronico": "Actuaciones Preparatorias",
+  "homologación": "Actuaciones Preparatorias",
+  "homologacion": "Actuaciones Preparatorias",
+  "subasta inversa": "Actuaciones Preparatorias",
+  "bienes comunes": "Actuaciones Preparatorias",
+  "servicios comunes": "Actuaciones Preparatorias",
+  "actuaciones preparatoria": "Actuaciones Preparatorias",
+  "planificación": "Actuaciones Preparatorias",
+  "planificacion": "Actuaciones Preparatorias",
+  "cuadro de necesidades": "Actuaciones Preparatorias",
+  "gestión de riesgos": "Actuaciones Preparatorias",
+  "gestion de riesgos": "Actuaciones Preparatorias",
+  "modalidades": "Actuaciones Preparatorias",
+  "modalidades de ejecución": "Actuaciones Preparatorias",
+  "modalidades / responsabilidad": "Actuaciones Preparatorias",
+  "responsabilidad del contratista": "Actuaciones Preparatorias",
+  "métodos de contratación": "Fase de Selección",
+  "metodos de contratacion": "Fase de Selección",
+  "métodos de selección": "Fase de Selección",
+  "metodos de seleccion": "Fase de Selección",
+  "procedimiento de selección": "Fase de Selección",
+  "procedimiento de seleccion": "Fase de Selección",
+  "bases": "Fase de Selección",
+  "convocatoria": "Fase de Selección",
+  "evaluación de ofertas": "Fase de Selección",
+  "evaluacion de ofertas": "Fase de Selección",
+  "buena pro": "Fase de Selección",
+  "consentimiento": "Fase de Selección",
+  "impugnación": "Fase de Selección",
+  "impugnacion": "Fase de Selección",
+  "nulidad del proceso": "Fase de Selección",
+  "seace": "Fase de Selección",
+  "rnp": "Fase de Selección",
+  "registro nacional de proveedores": "Fase de Selección",
+  "calificación": "Fase de Selección",
+  "calificacion": "Fase de Selección",
+  "calificación / rnp": "Fase de Selección",
+  "licitación pública": "Fase de Selección",
+  "licitacion publica": "Fase de Selección",
+  "concurso público": "Fase de Selección",
+  "concurso publico": "Fase de Selección",
+  "adjudicación simplificada": "Fase de Selección",
+  "adjudicacion simplificada": "Fase de Selección",
+  "selección de consultores": "Fase de Selección",
+  "seleccion de consultores": "Fase de Selección",
+  "comparación de precios": "Fase de Selección",
+  "comparacion de precios": "Fase de Selección",
+  "diálogo competitivo": "Fase de Selección",
+  "dialogo competitivo": "Fase de Selección",
+  "selección abreviada": "Fase de Selección",
+  "consultoría": "Fase de Selección",
+  "consultoria": "Fase de Selección",
+  "postores": "Fase de Selección",
+  "propuesta técnica": "Fase de Selección",
+  "propuesta tecnica": "Fase de Selección",
+  "propuesta económica": "Fase de Selección",
+  "propuesta economica": "Fase de Selección",
+  "factores de evaluación": "Fase de Selección",
+  "factores de evaluacion": "Fase de Selección",
+  "admisión": "Fase de Selección",
+  "admision": "Fase de Selección",
+  "descalificación": "Fase de Selección",
+  "descalificacion": "Fase de Selección",
+  "integración de bases": "Fase de Selección",
+  "integracion de bases": "Fase de Selección",
+  "absolución de consultas": "Fase de Selección",
+  "absolucion de consultas": "Fase de Selección",
+  "consorcios": "Fase de Selección",
+  "consorcio": "Fase de Selección",
+  "impedimentos": "Fase de Selección",
+  "garantías": "Ejecución Contractual",
+  "garantias": "Ejecución Contractual",
+  "garantías contractuales": "Ejecución Contractual",
+  "garantias contractuales": "Ejecución Contractual",
+  "contrato": "Ejecución Contractual",
+  "penalidades": "Ejecución Contractual",
+  "penalidad": "Ejecución Contractual",
+  "adicionales": "Ejecución Contractual",
+  "resolución de contrato": "Ejecución Contractual",
+  "resolucion de contrato": "Ejecución Contractual",
+  "liquidación": "Ejecución Contractual",
+  "liquidacion": "Ejecución Contractual",
+  "ejecución contractual": "Ejecución Contractual",
+  "ejecucion contractual": "Ejecución Contractual",
+  "jprd": "Ejecución Contractual",
+  "arbitraje": "Ejecución Contractual",
+  "conciliación": "Ejecución Contractual",
+  "conciliacion": "Ejecución Contractual",
+  "obras": "Ejecución Contractual",
+  "supervisión": "Ejecución Contractual",
+  "supervision": "Ejecución Contractual",
+  "valorizaciones": "Ejecución Contractual",
+  "valorización": "Ejecución Contractual",
+  "valoracion": "Ejecución Contractual",
+  "adelantos": "Ejecución Contractual",
+  "modificaciones contractuales": "Ejecución Contractual",
+  "modificación contractual": "Ejecución Contractual",
+  "modificacion contractual": "Ejecución Contractual",
+  "recepción": "Ejecución Contractual",
+  "recepcion": "Ejecución Contractual",
+  "conformidad": "Ejecución Contractual",
+  "vicios ocultos": "Ejecución Contractual",
+  "responsabilidad": "Ejecución Contractual",
+  "subcontratación": "Ejecución Contractual",
+  "subcontratacion": "Ejecución Contractual",
+  "cesión de posición contractual": "Ejecución Contractual",
+  "cesion": "Ejecución Contractual",
+  "plazo de ejecución": "Ejecución Contractual",
+  "plazo de ejecucion": "Ejecución Contractual",
+  "ampliación de plazo": "Ejecución Contractual",
+  "ampliacion de plazo": "Ejecución Contractual",
+  "control / adicionales": "Ejecución Contractual",
+  "bim / obras": "Ejecución Contractual",
+  "bim": "Ejecución Contractual",
+  "liquidación de obra": "Ejecución Contractual",
+  "liquidacion de obra": "Ejecución Contractual",
+  "nulidad del contrato": "Ejecución Contractual",
+  "infracciones y sanciones": "Ejecución Contractual",
+  "infracciones": "Ejecución Contractual",
+  "sanciones": "Ejecución Contractual",
+  "tribunal de contrataciones": "Ejecución Contractual",
+  "tce": "Ejecución Contractual",
+  "gobernanza": "Ejecución Contractual",
+  "integridad": "Ejecución Contractual",
+  "ética en el arbitraje": "Ejecución Contractual",
+  "etica en el arbitraje": "Ejecución Contractual",
+  "solucion de controversias": "Ejecución Contractual",
+  "solución de controversias": "Ejecución Contractual",
+  "jprd / arbitraje": "Ejecución Contractual"
+};
+
+    function inferCompetencia(tema) {
+        if (!tema) return 'Actuaciones Preparatorias';
+        const key = tema.toLowerCase().trim();
+        return TEMA_COMPETENCIA_MAP[key] || 'Actuaciones Preparatorias';
+    }
+
+    // ══════════════════════════════════════════════════════
     // FLOW CONTROL
     // ══════════════════════════════════════════════════════
     async function startFlow() {
@@ -1191,6 +1379,39 @@
             feedbackMsg.innerText = 'Nivel bajo. Requiere más estudio.'; ring.style.stroke = 'var(--osce-red)';
         }
 
+        // Nivel que obtendría en certificación
+        const certBox   = document.getElementById('nivel-cert-box');
+        const certLabel = document.getElementById('nivel-cert-label');
+        const certSub   = document.getElementById('nivel-cert-sub');
+        document.querySelectorAll('.nivel-pip').forEach(p => p.classList.remove('active-basico','active-intermedio','active-avanzado'));
+        if (score >= 58) {
+            certLabel.innerText = '🏆 Nivel Avanzado';
+            certLabel.style.color = '#1e40af';
+            certBox.style.borderColor = '#93c5fd';
+            certSub.innerText = `Con ${score} puntos aprobarías en nivel AVANZADO. ¡Excelente preparación!`;
+            document.getElementById('pip-avanzado').classList.add('active-avanzado');
+            document.getElementById('pip-intermedio').classList.add('active-intermedio');
+            document.getElementById('pip-basico').classList.add('active-basico');
+        } else if (score >= 43) {
+            certLabel.innerText = '✅ Nivel Intermedio';
+            certLabel.style.color = '#166534';
+            certBox.style.borderColor = '#86efac';
+            certSub.innerText = `Con ${score} puntos aprobarías en nivel INTERMEDIO. Te faltan ${58 - score} puntos para el nivel Avanzado.`;
+            document.getElementById('pip-intermedio').classList.add('active-intermedio');
+            document.getElementById('pip-basico').classList.add('active-basico');
+        } else if (score >= 30) {
+            certLabel.innerText = '📋 Nivel Básico';
+            certLabel.style.color = '#854d0e';
+            certBox.style.borderColor = '#fde047';
+            certSub.innerText = `Con ${score} puntos aprobarías en nivel BÁSICO. Te faltan ${43 - score} puntos para el nivel Intermedio.`;
+            document.getElementById('pip-basico').classList.add('active-basico');
+        } else {
+            certLabel.innerText = '❌ No aprobado aún';
+            certLabel.style.color = '#991b1b';
+            certBox.style.borderColor = '#fecaca';
+            certSub.innerText = `Con ${score} puntos aún no alcanzas el mínimo (30). Te faltan ${30 - score} puntos para el nivel Básico.`;
+        }
+
         // Topic breakdown — ordenado de peor a mejor para destacar áreas débiles
         const bd = document.getElementById('topic-breakdown');
         const sortedTopics = Object.keys(topicResults).sort((a, b) => {
@@ -1289,19 +1510,29 @@
             sessionStorage.setItem('oece_topic_stats', JSON.stringify(merged));
         }
 
-        // Save to Firestore
-        try {
-            await db.collection('intentos').add({
-                alumnoId: oece_uid,
-                alumniDni: oece_dni,
-                fecha: firebase.firestore.Timestamp.now(),
-                puntaje: score,
-                porcentaje: percent,
-                tiempoMin: timeSpent,
-                modo: currentMode,
-                topicResults: topicResults
-            });
-        } catch(e) { console.error('Error guardando intento:', e); }
+        // Save to Firestore — crea colección 'intentos' automáticamente al primer intento
+        if (oece_uid && currentMode !== 'demo') {
+            try {
+                await db.collection('intentos').add({
+                    alumnoId:     oece_uid,
+                    alumniDni:    oece_dni,
+                    alumnoNombre: oece_nombre,
+                    fecha:        firebase.firestore.Timestamp.now(),
+                    puntaje:      score,
+                    porcentaje:   percent,
+                    tiempoMin:    timeSpent,
+                    modo:         currentMode,
+                    topicResults: topicResults,
+                    nivelCertificado: score >= 58 ? 'Avanzado' : score >= 43 ? 'Intermedio' : score >= 30 ? 'Básico' : 'No aprobado'
+                });
+                console.log('Intento guardado correctamente en Firestore.');
+            } catch(e) {
+                console.error('Error guardando intento:', e);
+                // Toast visible para diagnóstico
+                const t = document.getElementById('save-error-toast');
+                if (t) { t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 5000); }
+            }
+        }
     }
 
     // ══════════════════════════════════════════════════════
