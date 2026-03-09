@@ -347,10 +347,30 @@
         .review-sustento { margin-top:7px; padding:7px 10px; background:#f0f7ff; border-left:3px solid var(--osce-blue); border-radius:0 6px 6px 0; font-size:0.75rem; color:#475569; line-height:1.5; }
 
         /* Mobile */
-        @media (max-width:600px) {
-            .results-card { grid-template-columns:1fr; }
-            .res-right    { max-height:none; }
-            .res-finish-btn { margin-top:16px; }
+        @media (max-width:640px) {
+            .results-card {
+                grid-template-columns: 1fr;
+                max-width: 100%;
+                border-radius: 16px;
+            }
+            .res-left {
+                padding: 20px 16px;
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: space-between;
+                align-items: center;
+                gap: 10px;
+                text-align: left;
+            }
+            .res-left-title { font-size:1rem; }
+            .res-left-sub   { display:none; }
+            .score-circle   { width:80px; height:80px; margin-bottom:0; }
+            .score-number   { font-size:1.9rem; }
+            .results-grid   { width:auto; flex:1; min-width:120px; }
+            #feedback-box   { width:100%; }
+            .res-finish-btn { margin-top:8px; width:100%; }
+            .res-right      { max-height:none; padding:16px; }
+            #results-overlay { padding: 12px 8px; }
         }
 
         /* TOPIC BREAKDOWN */
@@ -614,21 +634,9 @@
 
                 <div id="feedback-box"><span id="feedback-msg">Evaluando...</span></div>
 
-                <!-- Nivel que obtendría en certificación -->
-                <div id="nivel-cert-box" style="margin:14px 0; padding:14px 16px; border-radius:12px; text-align:left; border:1.5px solid #e2e8f0;">
-                    <div style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); margin-bottom:6px">Nivel que obtendrías en el examen real</div>
-                    <div id="nivel-cert-label" style="font-size:1.1rem; font-weight:800;"></div>
-                    <div id="nivel-cert-sub" style="font-size:0.78rem; color:var(--text-muted); margin-top:4px;"></div>
-                    <div style="margin-top:10px; display:flex; gap:6px; flex-wrap:wrap;" id="nivel-thresholds">
-                        <span class="nivel-pip" id="pip-basico">≥30 Básico</span>
-                        <span class="nivel-pip" id="pip-intermedio">≥43 Intermedio</span>
-                        <span class="nivel-pip" id="pip-avanzado">≥58 Avanzado</span>
-                    </div>
-                </div>
-
                 <!-- Toast error guardado -->
-                <div id="save-error-toast" style="display:none; background:#fee2e2; color:#991b1b; padding:10px 14px; border-radius:8px; font-size:0.8rem; margin-bottom:10px;">
-                    ⚠️ No se pudo guardar este intento. Verifica tu conexión.
+                <div id="save-error-toast" style="display:none; background:rgba(255,255,255,0.15); color:white; padding:8px 10px; border-radius:8px; font-size:0.75rem; margin-bottom:8px;">
+                    ⚠️ No se pudo guardar este intento.
                 </div>
 
                 <button class="res-finish-btn" onclick="location.reload()">Finalizar y Volver al Inicio</button>
@@ -636,6 +644,22 @@
 
             <!-- RIGHT: temas + revisión -->
             <div class="res-right">
+
+                <!-- Nivel certificación + distribución competencias -->
+                <div id="nivel-cert-box" style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:12px; padding:14px 16px; margin-bottom:4px;">
+                    <div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); margin-bottom:8px">Nivel que obtendrías en el examen real</div>
+                    <div id="nivel-cert-label" style="font-size:1.05rem; font-weight:800; margin-bottom:4px;"></div>
+                    <div id="nivel-cert-sub" style="font-size:0.78rem; color:var(--text-muted); margin-bottom:10px; line-height:1.4;"></div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
+                        <span class="nivel-pip" id="pip-basico">≥30 Básico</span>
+                        <span class="nivel-pip" id="pip-intermedio">≥43 Intermedio</span>
+                        <span class="nivel-pip" id="pip-avanzado">≥58 Avanzado</span>
+                    </div>
+                    <!-- Distribución por competencia -->
+                    <div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); margin-bottom:8px;">Distribución del examen real</div>
+                    <div id="comp-distribution" style="display:flex; flex-direction:column; gap:5px;"></div>
+                </div>
+
                 <div class="topic-breakdown" id="topic-breakdown"></div>
 
                 <div class="review-section" id="review-section" style="display:none">
@@ -1410,6 +1434,49 @@
             certLabel.style.color = '#991b1b';
             certBox.style.borderColor = '#fecaca';
             certSub.innerText = `Con ${score} puntos aún no alcanzas el mínimo (30). Te faltan ${30 - score} puntos para el nivel Básico.`;
+        }
+
+        // Distribución por competencia
+        const EXAM_DIST = {
+            'Actuaciones Preparatorias': 25,
+            'Fase de Selección': 22,
+            'Ejecución Contractual': 25
+        };
+        const COMP_COLORS = {
+            'Actuaciones Preparatorias': '#3b82f6',
+            'Fase de Selección':         '#f59e0b',
+            'Ejecución Contractual':     '#22c55e'
+        };
+        const compResults = {};
+        examQuestions.forEach((q, idx) => {
+            const comp = q.competencia || inferCompetencia(q.tema);
+            if (!compResults[comp]) compResults[comp] = { correct: 0, total: 0, expected: EXAM_DIST[comp] || '—' };
+            compResults[comp].total++;
+            if (userAnswers[idx] === q.correctDisplayIdx) compResults[comp].correct++;
+        });
+
+        const compDiv = document.getElementById('comp-distribution');
+        if (compDiv) {
+            compDiv.innerHTML = '';
+            Object.entries(EXAM_DIST).forEach(([comp, expected]) => {
+                const r   = compResults[comp] || { correct: 0, total: 0 };
+                const pct = r.total > 0 ? Math.round((r.correct / r.total) * 100) : 0;
+                const shortName = comp === 'Actuaciones Preparatorias' ? 'Act. Prep.' :
+                                  comp === 'Fase de Selección'         ? 'Selección'  : 'Ejec. Cont.';
+                const color = COMP_COLORS[comp] || '#94a3b8';
+                compDiv.innerHTML += `
+                    <div class="comp-row">
+                        <span class="comp-label">${shortName}</span>
+                        <div class="comp-bar-wrap">
+                            <div class="comp-bar-fill" style="width:0%; background:${color}" data-w="${pct}"></div>
+                        </div>
+                        <span class="comp-score" style="color:${color}">${r.correct}/${r.total} (${pct}%)</span>
+                    </div>`;
+            });
+            // Animate
+            setTimeout(() => {
+                compDiv.querySelectorAll('.comp-bar-fill').forEach(b => b.style.width = b.dataset.w + '%');
+            }, 200);
         }
 
         // Topic breakdown — ordenado de peor a mejor para destacar áreas débiles
